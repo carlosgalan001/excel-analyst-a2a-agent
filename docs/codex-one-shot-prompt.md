@@ -192,6 +192,7 @@ Debe aceptar mensajes con `params.message.parts` en formato SDK:
 - `{ "kind": "file", "file": { "uri": "https://..." } }`
 - `{ "kind": "file", "file": { "bytes": "...", "name": "...", "mimeType": "..." } }`
 - `{ "kind": "file", "file": { "bytes": "...", "name": "...", "mime_type": "..." } }`
+- `{ "root": { "kind": "text", "text": "..." } }`, por compatibilidad defensiva con serializaciones RootModel.
 
 Tambien aceptar formatos simples:
 
@@ -203,10 +204,12 @@ Tambien aceptar formatos simples:
 Reglas:
 
 - Priorizar URL publica.
+- Buscar de forma recursiva una URL `http://` o `https://` en todo el payload A2A, no solo en `parts[0].text`.
 - Si recibe `FilePart.file.uri`, tratarlo como URL publica del Excel.
 - Si recibe `FilePart.file.bytes`, tratarlo como base64 equivalente a `raw`.
 - Si recibe `raw` o `file.bytes`, soportarlo solo para ficheros pequenos y devolver error claro si es demasiado grande.
 - Si recibe texto con una URL `http://` o `https://`, extraer esa URL.
+- Si no recibe URL ni fichero, no devolver HTTP 400. Devolver una respuesta JSON-RPC correcta con una `Task` en estado `input-required` y un `TextPart` que pida una URL publica de Excel. Esto evita que clientes AWP que tengan bugs de manejo de excepciones oculten el error real.
 
 ### Formato de respuesta A2A
 

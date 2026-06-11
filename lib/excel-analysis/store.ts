@@ -5,7 +5,7 @@ export interface A2ATaskRecord {
   id: string;
   contextId: string;
   status: {
-    state: "completed" | "failed";
+    state: "completed" | "failed" | "input-required";
     timestamp: string;
     message?: A2AMessage;
   };

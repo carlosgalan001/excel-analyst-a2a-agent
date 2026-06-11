@@ -38,7 +38,7 @@ export interface A2AContractResult {
 
 export async function handleA2AMessage(body: unknown, baseUrl: string): Promise<A2ATaskRecord> {
   const parts = extractParts(body);
-  const url = extractUrl(parts);
+  const url = extractUrl(parts) ?? findUrlDeep(body);
   let analysis: AnalysisResult;
 
   if (url) {
@@ -53,7 +53,9 @@ export async function handleA2AMessage(body: unknown, baseUrl: string): Promise<
     const raw = rawPart?.raw ?? rawPart?.file?.bytes;
 
     if (!raw) {
-      throw new Error("A2A message must include a workbook URL, data.excelUrl, a URL in text, or a small base64 raw file.");
+      const task = buildInputRequiredTask(body, parts);
+      saveTask(task);
+      return task;
     }
 
     const buffer = bufferFromBase64(raw);
@@ -167,6 +169,47 @@ export function getA2ATask(taskId: string): A2ATaskRecord | null {
   return getTask(taskId);
 }
 
+function buildInputRequiredTask(body: unknown, parts: IncomingA2APart[]): A2ATaskRecord {
+  const taskId = randomUUID();
+  const contextId = getContextId(body) ?? randomUUID();
+  const userMessage = buildUserMessage(body, parts, taskId, contextId);
+  const agentMessage: A2AMessage = {
+    kind: "message",
+    role: "agent",
+    messageId: randomUUID(),
+    taskId,
+    contextId,
+    parts: [
+      {
+        kind: "text",
+        text: "Please provide a public Excel URL in the message text or as data.excelUrl."
+      }
+    ],
+    metadata: {
+      sender: "excel_analyst_a2a_agent",
+      output_in_chat: true
+    }
+  };
+
+  return {
+    kind: "task",
+    id: taskId,
+    contextId,
+    status: {
+      state: "input-required",
+      timestamp: new Date().toISOString(),
+      message: agentMessage
+    },
+    history: [userMessage, agentMessage],
+    artifacts: [],
+    metadata: {
+      summary: "A public Excel URL is required.",
+      dashboardUrl: null,
+      reportUrl: null
+    }
+  };
+}
+
 export function toA2AContract(analysis: AnalysisResult): A2AContractResult {
   return {
     analysisId: analysis.analysisId,
@@ -195,7 +238,9 @@ function extractParts(body: unknown): IncomingA2APart[] {
   const directParts = message.parts;
 
   if (Array.isArray(directParts)) {
-    return directParts.filter((part): part is IncomingA2APart => typeof part === "object" && part !== null);
+    return directParts
+      .map(normalizeIncomingPart)
+      .filter((part): part is IncomingA2APart => part !== null);
   }
 
   if (typeof record.excelUrl === "string") {
@@ -211,6 +256,21 @@ function extractParts(body: unknown): IncomingA2APart[] {
   }
 
   return [];
+}
+
+function normalizeIncomingPart(part: unknown): IncomingA2APart | null {
+  if (!part || typeof part !== "object") {
+    return null;
+  }
+
+  const record = part as Record<string, unknown>;
+  const root = record.root;
+
+  if (root && typeof root === "object" && !Array.isArray(root)) {
+    return normalizeIncomingPart(root);
+  }
+
+  return record as IncomingA2APart;
 }
 
 function extractUrl(parts: IncomingA2APart[]): string | null {
@@ -252,6 +312,47 @@ function extractUrl(parts: IncomingA2APart[]): string | null {
 function bufferFromBase64(raw: string): Buffer {
   const cleaned = raw.includes(",") ? raw.split(",").pop() ?? raw : raw;
   return Buffer.from(cleaned, "base64");
+}
+
+function findUrlDeep(value: unknown): string | null {
+  const seen = new Set<unknown>();
+
+  function visit(current: unknown): string | null {
+    if (typeof current === "string") {
+      const match = /(https?:\/\/[^\s"'<>]+)/i.exec(current);
+      return match?.[1] ?? null;
+    }
+
+    if (!current || typeof current !== "object" || seen.has(current)) {
+      return null;
+    }
+
+    seen.add(current);
+
+    if (Array.isArray(current)) {
+      for (const item of current) {
+        const found = visit(item);
+
+        if (found) {
+          return found;
+        }
+      }
+
+      return null;
+    }
+
+    for (const item of Object.values(current as Record<string, unknown>)) {
+      const found = visit(item);
+
+      if (found) {
+        return found;
+      }
+    }
+
+    return null;
+  }
+
+  return visit(value);
 }
 
 function getContextId(body: unknown): string | null {
