@@ -109,7 +109,8 @@ async function analyzeWorkbook(
       cellDates: true,
       cellNF: false,
       cellStyles: false,
-      sheetStubs: false
+      sheetStubs: false,
+      sheetRows: Math.max(1000, options.maxRowsForInference ?? DEFAULT_INFERENCE_ROWS)
     });
   } catch (error) {
     throw new Error(`Invalid Excel workbook: ${error instanceof Error ? error.message : "unknown parser error"}`);
@@ -180,7 +181,9 @@ function analyzeSheet(
     };
   }
 
-  const range = XLSX.utils.decode_range(worksheet["!ref"]);
+  const worksheetWithFullRef = worksheet as XLSX.WorkSheet & { "!fullref"?: string };
+  const fullRef = typeof worksheetWithFullRef["!fullref"] === "string" ? worksheetWithFullRef["!fullref"] : worksheet["!ref"];
+  const range = XLSX.utils.decode_range(fullRef);
   const rawRows = XLSX.utils.sheet_to_json<CellValue[]>(worksheet, {
     header: 1,
     defval: null,
@@ -204,6 +207,7 @@ function analyzeSheet(
   const columnCount = Math.min(availableColumns, maxColumns);
   const headers = buildHeaders(rawRows[headerRowIndex] ?? [], columnCount);
   const dataRows = rawRows.slice(headerRowIndex + 1).filter((row) => rowHasValues(row.slice(0, columnCount)));
+  const estimatedRowCount = Math.max(dataRows.length, range.e.r - headerRowIndex);
   const analyzedRows = dataRows.length;
 
   const columns = buildColumnProfiles(headers, dataRows, options);
@@ -213,7 +217,7 @@ function analyzeSheet(
   return {
     profile: {
       name: sheetName,
-      rowCount: dataRows.length,
+      rowCount: estimatedRowCount,
       columnCount,
       analyzedRows,
       headerRowIndex,
