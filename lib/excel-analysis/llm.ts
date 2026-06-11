@@ -37,7 +37,7 @@ export async function enhanceSummaryWithLLM(result: AnalysisResult): Promise<str
           {
             role: "system",
             content:
-              "Write a concise executive summary for a spreadsheet analysis. Use only the aggregate JSON supplied by the user. Do not invent facts."
+              "Redacta en espanol un resumen ejecutivo conciso para un analisis de Excel. Usa solo el JSON agregado que aporta el usuario. No inventes hechos ni envies datos fila a fila."
           },
           {
             role: "user",

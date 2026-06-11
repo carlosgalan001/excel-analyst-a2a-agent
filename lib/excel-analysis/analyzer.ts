@@ -66,7 +66,7 @@ export async function analyzeWorkbookFromUrl(
 
   if (contentLength > URL_DOWNLOAD_LIMIT_BYTES) {
     throw new Error(
-      `The Excel file is ${(contentLength / 1024 / 1024).toFixed(1)} MB. Use a smaller workbook or a temporary URL below ${URL_DOWNLOAD_LIMIT_BYTES / 1024 / 1024} MB.`
+      `El Excel pesa ${(contentLength / 1024 / 1024).toFixed(1)} MB. Usa un libro mas pequeno o una URL temporal por debajo de ${URL_DOWNLOAD_LIMIT_BYTES / 1024 / 1024} MB.`
     );
   }
 
@@ -74,7 +74,7 @@ export async function analyzeWorkbookFromUrl(
 
   if (arrayBuffer.byteLength > URL_DOWNLOAD_LIMIT_BYTES) {
     throw new Error(
-      `The Excel file is ${(arrayBuffer.byteLength / 1024 / 1024).toFixed(1)} MB. Use a smaller workbook or split the analysis.`
+      `El Excel pesa ${(arrayBuffer.byteLength / 1024 / 1024).toFixed(1)} MB. Usa un libro mas pequeno o divide el analisis.`
     );
   }
 
@@ -113,11 +113,11 @@ async function analyzeWorkbook(
       sheetRows: Math.max(1000, options.maxRowsForInference ?? DEFAULT_INFERENCE_ROWS)
     });
   } catch (error) {
-    throw new Error(`Invalid Excel workbook: ${error instanceof Error ? error.message : "unknown parser error"}`);
+    throw new Error(`Excel no valido: ${error instanceof Error ? error.message : "error desconocido del parser"}`);
   }
 
   if (!workbook.SheetNames.length) {
-    throw new Error("The workbook does not contain any sheets.");
+    throw new Error("El libro no contiene hojas.");
   }
 
   const createdAt = new Date().toISOString();
@@ -138,7 +138,7 @@ async function analyzeWorkbook(
   const trimmedCharts = charts.slice(0, MAX_CHARTS);
   const findings = buildFindings(workbookProfile, sheets, trimmedCharts);
   const recommendations = buildRecommendations(workbookProfile, sheets, trimmedCharts);
-  const dashboardUrl = `${baseUrl}/analysis/${analysisId}`;
+  const dashboardUrl = buildDashboardUrl(baseUrl, analysisId, sourceUrl);
 
   const deterministicSummary = buildExecutiveSummary(workbookProfile, sheets, findings);
 
@@ -212,7 +212,7 @@ function analyzeSheet(
 
   const columns = buildColumnProfiles(headers, dataRows, options);
   const dataQuality = buildDataQuality(columns, dataRows, columnCount);
-    const charts = buildSheetCharts(sheetName, columns, dataRows);
+  const charts = buildSheetCharts(sheetName, columns, dataRows);
 
   return {
     profile: {
@@ -365,7 +365,7 @@ function buildColumnProfiles(
         ? "empty"
         : dateRatio >= 0.65 || (profile.detectedRole === "date" && profile.dateCount > 0)
           ? "date"
-          : numberRatio >= 0.75
+          : numberRatio >= 0.65
             ? "number"
             : booleanRatio >= 0.8
               ? "boolean"
@@ -472,26 +472,26 @@ function buildSheetCharts(
     if (aggregate.length > 1) {
       charts.push({
         id: `bar-${slugify(sheetName)}-${categoryColumn.index}`,
-        title: `${categoryColumn.name} by ${numericColumn?.name ?? "row count"}`,
+        title: `${categoryColumn.name} por ${numericColumn?.name ?? "numero de filas"}`,
         type: "bar",
         sheetName,
         xKey: "label",
         yKey: "value",
         data: aggregate.slice(0, 10),
-        description: `Top categories detected in ${sheetName}.`
+        description: `Principales categorias detectadas en ${sheetName}.`
       });
     }
 
     if (numericColumn && aggregate.length > 1) {
       charts.push({
         id: `ranking-${slugify(sheetName)}-${categoryColumn.index}-${numericColumn.index}`,
-        title: `Top ${categoryColumn.name}`,
+        title: `Ranking de ${categoryColumn.name}`,
         type: "ranking",
         sheetName,
         xKey: "label",
         yKey: "value",
         data: aggregate.slice(0, 10),
-        description: `Ranking by ${numericColumn.name}.`
+        description: `Ranking por ${numericColumn.name}.`
       });
     }
   }
@@ -502,13 +502,13 @@ function buildSheetCharts(
     if (temporal.length > 1) {
       charts.push({
         id: `line-${slugify(sheetName)}-${dateColumn.index}`,
-        title: `${numericColumn?.name ?? "Rows"} over time`,
+        title: `${numericColumn?.name ?? "Filas"} por periodo`,
         type: "line",
         sheetName,
         xKey: "label",
         yKey: "value",
         data: temporal.slice(-24),
-        description: `Temporal trend detected from ${dateColumn.name}.`
+        description: `Tendencia temporal detectada a partir de ${dateColumn.name}.`
       });
     }
   }
@@ -588,28 +588,28 @@ function buildKpis(workbookProfile: WorkbookProfile, sheets: SheetProfile[]): Kp
   const kpis: Kpi[] = [
     {
       id: "total_sheets",
-      label: "Sheets",
+      label: "Hojas",
       value: workbookProfile.totalSheets,
       formattedValue: formatInteger(workbookProfile.totalSheets),
       aggregate: "count"
     },
     {
       id: "total_rows",
-      label: "Rows",
+      label: "Filas",
       value: workbookProfile.totalRows,
       formattedValue: formatInteger(workbookProfile.totalRows),
       aggregate: "count"
     },
     {
       id: "total_columns",
-      label: "Columns",
+      label: "Columnas",
       value: workbookProfile.totalColumns,
       formattedValue: formatInteger(workbookProfile.totalColumns),
       aggregate: "count"
     },
     {
       id: "empty_sheets",
-      label: "Empty sheets",
+      label: "Hojas vacias",
       value: workbookProfile.emptySheets,
       formattedValue: formatInteger(workbookProfile.emptySheets),
       aggregate: "count"
@@ -648,7 +648,7 @@ function numericKpi(
 ): Kpi {
   return {
     id: `${slugify(sheetName)}-${slugify(columnName)}-${aggregate}`,
-    label: `${columnName} ${aggregate}`,
+    label: `${columnName} ${translateAggregate(aggregate)}`,
     value: roundNumber(value),
     formattedValue: formatNumber(value),
     sheetName,
@@ -670,45 +670,69 @@ function buildFindings(
   const duplicateSheets = sheets.filter((sheet) => sheet.dataQuality.approximateDuplicateRows > 0);
 
   findings.push(
-    `Workbook contains ${formatInteger(workbookProfile.totalSheets)} sheets, ${formatInteger(workbookProfile.totalRows)} data rows and ${formatInteger(workbookProfile.totalColumns)} detected columns.`
+    `El libro contiene ${formatInteger(workbookProfile.totalSheets)} hojas, ${formatInteger(workbookProfile.totalRows)} filas de datos y ${formatInteger(workbookProfile.totalColumns)} columnas detectadas.`
   );
 
   if (workbookProfile.largestSheet) {
     findings.push(
-      `Largest sheet is "${workbookProfile.largestSheet.name}" with ${formatInteger(workbookProfile.largestSheet.rowCount)} rows and ${formatInteger(workbookProfile.largestSheet.columnCount)} columns.`
+      `La hoja con mayor volumen es "${workbookProfile.largestSheet.name}", con ${formatInteger(workbookProfile.largestSheet.rowCount)} filas y ${formatInteger(workbookProfile.largestSheet.columnCount)} columnas.`
     );
   }
 
   if (workbookProfile.emptySheets) {
-    findings.push(`${formatInteger(workbookProfile.emptySheets)} sheets appear to be empty.`);
+    findings.push(`${formatInteger(workbookProfile.emptySheets)} hojas parecen estar vacias.`);
   }
 
   if (numericColumns.length) {
-    findings.push(`${formatInteger(numericColumns.length)} numeric columns were profiled with sums, averages and ranges.`);
+    findings.push(`${formatInteger(numericColumns.length)} columnas numericas se han perfilado con sumas, medias y rangos.`);
   }
 
   if (dateColumns.length) {
-    findings.push(`${formatInteger(dateColumns.length)} date-like columns were detected for time-based analysis.`);
+    findings.push(`${formatInteger(dateColumns.length)} columnas con aspecto de fecha permiten analisis temporal.`);
   }
 
   if (highNullSheets.length) {
     findings.push(
-      `${formatInteger(highNullSheets.length)} sheets have more than 35% empty cells and may need data quality review.`
+      `${formatInteger(highNullSheets.length)} hojas tienen mas del 35% de celdas vacias y conviene revisarlas antes de usar los datos operativamente.`
     );
   }
 
   if (duplicateSheets.length) {
     findings.push(
-      `${formatInteger(duplicateSheets.length)} sheets contain approximate duplicate rows based on row signatures.`
+      `${formatInteger(duplicateSheets.length)} hojas contienen posibles duplicados aproximados segun la firma de fila.`
     );
   }
 
   if (charts.length) {
-    findings.push(`${formatInteger(charts.length)} automatic chart-ready aggregates were generated.`);
+    findings.push(`${formatInteger(charts.length)} agregados listos para graficar se han generado automaticamente.`);
   }
 
   if (!nonEmptySheets.length) {
-    findings.push("No non-empty data sheets were found.");
+    findings.push("No se han encontrado hojas con datos.");
+  }
+
+  const sheetSummary = nonEmptySheets
+    .slice()
+    .sort((a, b) => b.rowCount - a.rowCount)
+    .slice(0, 3)
+    .map((sheet) => `${sheet.name}: ${formatInteger(sheet.rowCount)} filas, ${formatInteger(sheet.columnCount)} columnas`)
+    .join("; ");
+
+  if (sheetSummary) {
+    findings.push(`Hojas principales por volumen: ${sheetSummary}.`);
+  }
+
+  const usefulColumns = sheets
+    .flatMap((sheet) =>
+      sheet.columns
+        .filter((column) => column.detectedRole || ["number", "date", "category"].includes(column.inferredType))
+        .slice(0, 4)
+        .map((column) => `${sheet.name}.${column.name} (${column.detectedRole ?? column.inferredType})`)
+    )
+    .slice(0, 8);
+
+  if (usefulColumns.length) {
+    findings.push(`Campos utiles detectados para explotacion: ${usefulColumns.join(", ")}.`);
   }
 
   return findings;
@@ -723,14 +747,14 @@ function buildExecutiveSummary(
     ? sheets.reduce((sum, sheet) => sum + sheet.dataQuality.nullRatio, 0) / sheets.length
     : 0;
   const largest = workbookProfile.largestSheet
-    ? ` The largest sheet is "${workbookProfile.largestSheet.name}".`
+    ? ` La hoja principal por volumen es "${workbookProfile.largestSheet.name}".`
     : "";
   const qualitySentence =
     quality > 0.35
-      ? " Data completeness is uneven and should be reviewed before operational use."
-      : " Data completeness is broadly usable for exploratory reporting.";
+      ? " La completitud es irregular: antes de tomar decisiones conviene revisar columnas vacias y nulos."
+      : " La completitud es suficiente para una primera exploracion y para construir un dashboard inicial.";
 
-  return `${findings[0] ?? "Workbook analysis completed."}${largest}${qualitySentence}`;
+  return `${findings[0] ?? "Analisis del libro completado."}${largest}${qualitySentence}`;
 }
 
 function buildRecommendations(
@@ -746,35 +770,35 @@ function buildRecommendations(
   const hasNumber = sheets.some((sheet) => sheet.columns.some((column) => column.inferredType === "number"));
 
   if (workbookProfile.emptySheets) {
-    recommendations.push("Remove or document empty sheets so downstream agents can focus on relevant tables.");
+    recommendations.push("Eliminar o documentar las hojas vacias para que los agentes posteriores se centren en tablas relevantes.");
   }
 
   if (emptyColumns) {
-    recommendations.push(`Review ${formatInteger(emptyColumns)} empty columns before publishing this workbook as an integration source.`);
+    recommendations.push(`Revisar ${formatInteger(emptyColumns)} columnas vacias antes de publicar este libro como fuente de integracion.`);
   }
 
   if (duplicateRows) {
-    recommendations.push(`Validate ${formatInteger(duplicateRows)} approximate duplicate rows before using the data for KPI reporting.`);
+    recommendations.push(`Validar ${formatInteger(duplicateRows)} posibles filas duplicadas antes de usar el fichero para reporting de KPIs.`);
   }
 
   if (!hasDate) {
-    recommendations.push("Add an explicit date column if trend reporting is expected.");
+    recommendations.push("Incorporar una columna de fecha explicita si se espera reporting de tendencias.");
   }
 
   if (!hasCategory) {
-    recommendations.push("Add stable category, region or status fields to improve automatic segmentation.");
+    recommendations.push("Normalizar campos de categoria, region o estado para mejorar la segmentacion automatica.");
   }
 
   if (!hasNumber) {
-    recommendations.push("Add numeric business measures if the workbook should produce financial or operational KPIs.");
+    recommendations.push("Anadir medidas numericas de negocio si el libro debe producir KPIs financieros u operativos.");
   }
 
   if (charts.length) {
-    recommendations.push("Use the generated chart aggregates as a first dashboard draft and validate labels with a domain owner.");
+    recommendations.push("Usar los agregados graficos como primer borrador de dashboard y validar las etiquetas con un responsable funcional.");
   }
 
   if (!recommendations.length) {
-    recommendations.push("Workbook structure is suitable for a first-pass analytical dashboard.");
+    recommendations.push("La estructura del libro es adecuada para un primer dashboard analitico.");
   }
 
   return recommendations;
@@ -786,11 +810,11 @@ function validateWorkbookUrl(rawUrl: string): string {
   try {
     url = new URL(rawUrl);
   } catch {
-    throw new Error("Provide a valid public HTTP or HTTPS URL for the Excel workbook.");
+    throw new Error("Indica una URL publica HTTP o HTTPS valida para el Excel.");
   }
 
   if (!["http:", "https:"].includes(url.protocol)) {
-    throw new Error("Only HTTP and HTTPS URLs are supported.");
+    throw new Error("Solo se admiten URLs HTTP y HTTPS.");
   }
 
   return url.toString();
@@ -811,16 +835,16 @@ async function fetchWithTimeout(url: string): Promise<Response> {
     });
 
     if (!response.ok) {
-      throw new Error(`Download failed with HTTP ${response.status}.`);
+      throw new Error(`La descarga ha fallado con HTTP ${response.status}.`);
     }
 
     return response;
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") {
-      throw new Error("Download timed out after 45 seconds.");
+      throw new Error("La descarga ha superado el limite de 45 segundos.");
     }
 
-    throw error instanceof Error ? error : new Error("Unable to download the Excel workbook.");
+    throw error instanceof Error ? error : new Error("No se ha podido descargar el Excel.");
   } finally {
     clearTimeout(timeout);
   }
@@ -882,7 +906,7 @@ function buildHeaders(headerRow: CellValue[], columnCount: number): string[] {
 
   for (let index = 0; index < columnCount; index += 1) {
     const rawHeader = stringifyCell(headerRow[index]).trim();
-    const baseHeader = rawHeader || `Column ${XLSX.utils.encode_col(index)}`;
+    const baseHeader = rawHeader || `Columna ${XLSX.utils.encode_col(index)}`;
     const normalized = baseHeader.replace(/\s+/g, " ").slice(0, 120);
     const seenCount = seen.get(normalized.toLocaleLowerCase()) ?? 0;
     seen.set(normalized.toLocaleLowerCase(), seenCount + 1);
@@ -1045,12 +1069,33 @@ function normalizeBaseUrl(baseUrl?: string): string {
   return baseUrl.replace(/\/+$/, "");
 }
 
+function buildDashboardUrl(baseUrl: string, analysisId: string, sourceUrl: string | null): string {
+  const url = new URL(`/analysis/${analysisId}`, baseUrl);
+
+  if (sourceUrl) {
+    url.searchParams.set("sourceUrl", sourceUrl);
+  }
+
+  return url.toString();
+}
+
+function translateAggregate(aggregate: "sum" | "average" | "min" | "max"): string {
+  const labels = {
+    sum: "suma",
+    average: "media",
+    min: "minimo",
+    max: "maximo"
+  };
+
+  return labels[aggregate];
+}
+
 function formatInteger(value: number): string {
-  return new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(value);
+  return new Intl.NumberFormat("es-ES", { maximumFractionDigits: 0 }).format(value);
 }
 
 function formatNumber(value: number): string {
-  return new Intl.NumberFormat("en-US", {
+  return new Intl.NumberFormat("es-ES", {
     maximumFractionDigits: Math.abs(value) >= 100 ? 0 : 2
   }).format(value);
 }

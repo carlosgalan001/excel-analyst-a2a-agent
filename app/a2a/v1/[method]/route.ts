@@ -8,7 +8,7 @@ export const maxDuration = 60;
 
 export async function POST(request: Request, { params }: { params: { method: string } }) {
   if (params.method !== "message:send") {
-    return NextResponse.json({ error: { code: "not_found", message: "Unsupported A2A endpoint." } }, { status: 404 });
+    return NextResponse.json({ error: { code: "not_found", message: "Endpoint A2A no soportado." } }, { status: 404 });
   }
 
   try {
@@ -21,7 +21,7 @@ export async function POST(request: Request, { params }: { params: { method: str
       {
         error: {
           code: "a2a_message_failed",
-          message: error instanceof Error ? error.message : "Unable to process A2A message."
+          message: error instanceof Error ? error.message : "No se ha podido procesar el mensaje A2A."
         }
       },
       { status: 400 }

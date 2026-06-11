@@ -9,23 +9,23 @@ export default function HomePage() {
       <section className="content">
         <div className="hero-grid">
           <div className="hero-copy">
-            <p className="eyebrow">A2A-ready workbook intelligence</p>
+            <p className="eyebrow">Inteligencia Excel preparada para A2A</p>
             <h1>Excel Analyst A2A Agent</h1>
             <p>
-              Upload a small workbook or analyze a public Excel URL, then share the same analysis through public A2A
-              endpoints for external AWP agents.
+              Sube un Excel pequeno o analiza una URL publica. El mismo motor expone resultados estructurados por A2A
+              para agentes externos de AWP.
             </p>
             <div className="metrics-strip" aria-label="Demo capabilities">
               <div className="metric">
-                <span>Input</span>
+                <span>Entrada</span>
                 <strong>URL</strong>
               </div>
               <div className="metric">
-                <span>Sheets</span>
+                <span>Hojas</span>
                 <strong>Multi</strong>
               </div>
               <div className="metric">
-                <span>Output</span>
+                <span>Salida</span>
                 <strong>JSON</strong>
               </div>
               <div className="metric">
@@ -51,8 +51,8 @@ function Header() {
           </span>
           <span>Excel Analyst A2A Agent</span>
         </Link>
-        <nav className="nav-links" aria-label="Primary navigation">
-          <Link href="/a2a-playground">A2A Playground</Link>
+        <nav className="nav-links" aria-label="Navegacion principal">
+          <Link href="/a2a-playground">Playground A2A</Link>
           <Link href="/.well-known/agent-card.json">Agent Card</Link>
         </nav>
       </div>

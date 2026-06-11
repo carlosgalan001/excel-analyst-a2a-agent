@@ -46,12 +46,12 @@ export function A2APlayground() {
       const json = await httpResponse.json();
 
       if (!httpResponse.ok) {
-        throw new Error(json?.error?.message ?? "A2A request failed.");
+        throw new Error(json?.error?.message ?? "La peticion A2A ha fallado.");
       }
 
       setResponse(json);
     } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : "Unexpected A2A error.");
+      setError(caughtError instanceof Error ? caughtError.message : "Error A2A inesperado.");
     } finally {
       setIsLoading(false);
     }
@@ -67,9 +67,9 @@ export function A2APlayground() {
     <section className="content">
       <div className="section-heading">
         <div>
-          <p className="eyebrow">A2A Playground</p>
-          <h1>SendMessage demo</h1>
-          <p>Run a real HTTP+JSON request against this app&apos;s public A2A endpoint.</p>
+          <p className="eyebrow">Playground A2A</p>
+          <h1>Demo SendMessage</h1>
+          <p>Ejecuta una peticion HTTP+JSON real contra el endpoint A2A publico de esta aplicacion.</p>
         </div>
       </div>
 
@@ -77,7 +77,7 @@ export function A2APlayground() {
         <section className="section-band">
           <div className="form-stack">
             <div className="field">
-              <label htmlFor="playground-url">Excel URL</label>
+              <label htmlFor="playground-url">URL del Excel</label>
               <input
                 className="plain-input"
                 id="playground-url"
@@ -88,7 +88,7 @@ export function A2APlayground() {
             </div>
 
             <div>
-              <span className="textarea-label">Request</span>
+              <span className="textarea-label">Peticion</span>
               <pre className="json-block">{JSON.stringify(requestBody, null, 2)}</pre>
             </div>
 
@@ -97,11 +97,11 @@ export function A2APlayground() {
             <div className="button-row">
               <button className="btn btn-primary" disabled={isLoading || !excelUrl.trim()} onClick={send} type="button">
                 {isLoading ? <Loader2 size={18} aria-hidden="true" /> : <Play size={18} aria-hidden="true" />}
-                Send
+                Enviar
               </button>
-              <button className="btn btn-secondary" onClick={copyRequest} title="Copy request JSON" type="button">
+              <button className="btn btn-secondary" onClick={copyRequest} title="Copiar JSON de peticion" type="button">
                 <Clipboard size={18} aria-hidden="true" />
-                {copied ? "Copied" : "Copy"}
+                {copied ? "Copiado" : "Copiar"}
               </button>
               <button
                 className="btn btn-secondary"
@@ -110,19 +110,19 @@ export function A2APlayground() {
                   setResponse(null);
                   setError(null);
                 }}
-                title="Restore demo URL"
+                title="Restaurar URL demo"
                 type="button"
               >
                 <RefreshCw size={18} aria-hidden="true" />
-                Reset
+                Reiniciar
               </button>
             </div>
           </div>
         </section>
 
         <section className="section-band">
-          <h2>Response</h2>
-          {isLoading ? <div className="status status-loading">Waiting for completed A2A task...</div> : null}
+          <h2>Respuesta</h2>
+          {isLoading ? <div className="status status-loading">Esperando la task A2A completada...</div> : null}
           <pre className="json-block">{response ? JSON.stringify(response, null, 2) : "{}"}</pre>
         </section>
       </div>

@@ -13,8 +13,8 @@ export default function A2APlaygroundPage() {
             </span>
             <span>Excel Analyst A2A Agent</span>
           </Link>
-          <nav className="nav-links" aria-label="Primary navigation">
-            <Link href="/">Analyze</Link>
+          <nav className="nav-links" aria-label="Navegacion principal">
+            <Link href="/">Analizar</Link>
             <Link href="/.well-known/agent-card.json">Agent Card</Link>
           </nav>
         </div>

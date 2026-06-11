@@ -17,9 +17,10 @@ import type { AnalysisResult, ChartDefinition, ColumnProfile, SheetProfile } fro
 
 interface Props {
   analysisId: string;
+  sourceUrl?: string | null;
 }
 
-export function AnalysisDashboard({ analysisId }: Props) {
+export function AnalysisDashboard({ analysisId, sourceUrl = null }: Props) {
   const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
   const [selectedSheetName, setSelectedSheetName] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -41,7 +42,31 @@ export function AnalysisDashboard({ analysisId }: Props) {
           const cached = sessionStorage.getItem(`excel-analysis:${analysisId}`);
 
           if (!cached) {
-            throw new Error(json.error ?? "Analysis not found in runtime memory.");
+            if (sourceUrl) {
+              const rebuiltResponse = await fetch("/api/analyze/url", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json"
+                },
+                body: JSON.stringify({ url: sourceUrl })
+              });
+              const rebuilt = (await rebuiltResponse.json()) as { analysis?: AnalysisResult; error?: string };
+
+              if (!rebuiltResponse.ok || !rebuilt.analysis) {
+                throw new Error(rebuilt.error ?? "No se ha podido reconstruir el analisis desde la URL original.");
+              }
+
+              sessionStorage.setItem(`excel-analysis:${analysisId}`, JSON.stringify(rebuilt.analysis));
+              sessionStorage.setItem(`excel-analysis:${rebuilt.analysis.analysisId}`, JSON.stringify(rebuilt.analysis));
+
+              if (active) {
+                setAnalysis(rebuilt.analysis);
+                setSelectedSheetName(rebuilt.analysis.sheets[0]?.name ?? null);
+              }
+              return;
+            }
+
+            throw new Error(json.error ?? "Analisis no encontrado en la memoria temporal de Vercel.");
           }
 
           const parsed = JSON.parse(cached) as AnalysisResult;
@@ -60,7 +85,7 @@ export function AnalysisDashboard({ analysisId }: Props) {
         }
       } catch (caughtError) {
         if (active) {
-          setError(caughtError instanceof Error ? caughtError.message : "Unable to load analysis.");
+          setError(caughtError instanceof Error ? caughtError.message : "No se ha podido cargar el analisis.");
         }
       } finally {
         if (active) {
@@ -74,7 +99,7 @@ export function AnalysisDashboard({ analysisId }: Props) {
     return () => {
       active = false;
     };
-  }, [analysisId]);
+  }, [analysisId, sourceUrl]);
 
   const selectedSheet = useMemo(() => {
     if (!analysis) {
@@ -88,7 +113,7 @@ export function AnalysisDashboard({ analysisId }: Props) {
     return (
       <section className="content">
         <div className="empty-state">
-          <p>Loading analysis...</p>
+          <p>Cargando analisis...</p>
         </div>
       </section>
     );
@@ -99,8 +124,8 @@ export function AnalysisDashboard({ analysisId }: Props) {
       <section className="content">
         <div className="empty-state">
           <div>
-            <h1>Analysis unavailable</h1>
-            <p>{error ?? "The analysis result is no longer available in memory."}</p>
+            <h1>Analisis no disponible</h1>
+            <p>{error ?? "El resultado ya no esta disponible en memoria temporal."}</p>
           </div>
         </div>
       </section>
@@ -121,34 +146,34 @@ export function AnalysisDashboard({ analysisId }: Props) {
     <section className="content">
       <div className="section-heading">
         <div>
-          <p className="eyebrow">Analysis dashboard</p>
+          <p className="eyebrow">Dashboard de analisis</p>
           <h1>{analysis.fileName}</h1>
           <p>{analysis.executiveSummary}</p>
         </div>
         <div className="button-row">
           <a className="btn btn-secondary" href={analysis.dashboardUrl} rel="noreferrer" target="_blank">
             <ExternalLink size={18} aria-hidden="true" />
-            Open
+            Abrir
           </a>
-          <button className="btn btn-secondary" onClick={copyJson} title="Copy JSON result" type="button">
+          <button className="btn btn-secondary" onClick={copyJson} title="Copiar JSON" type="button">
             <Clipboard size={18} aria-hidden="true" />
-            {copied ? "Copied" : "Copy JSON"}
+            {copied ? "Copiado" : "Copiar JSON"}
           </button>
         </div>
       </div>
 
-      <div className="kpi-grid" aria-label="Workbook KPIs">
+      <div className="kpi-grid" aria-label="KPIs del libro">
         {analysis.kpis.slice(0, 8).map((kpi) => (
           <div className="kpi-card" key={kpi.id}>
             <small>{kpi.label}</small>
             <strong>{kpi.formattedValue}</strong>
-            <span>{kpi.sheetName ?? "Workbook"}</span>
+            <span>{kpi.sheetName ?? "Libro"}</span>
           </div>
         ))}
       </div>
 
       <div className="dashboard-grid" style={{ marginTop: 18 }}>
-        <aside className="sidebar" aria-label="Detected sheets">
+        <aside className="sidebar" aria-label="Hojas detectadas">
           {analysis.sheets.map((sheet) => (
             <button
               className={`sheet-button ${sheet.name === selectedSheet?.name ? "active" : ""}`}
@@ -158,7 +183,7 @@ export function AnalysisDashboard({ analysisId }: Props) {
             >
               <span>{sheet.name}</span>
               <small>
-                {formatInteger(sheet.rowCount)} rows / {formatInteger(sheet.columnCount)} columns
+                {formatInteger(sheet.rowCount)} filas / {formatInteger(sheet.columnCount)} columnas
               </small>
             </button>
           ))}
@@ -166,19 +191,19 @@ export function AnalysisDashboard({ analysisId }: Props) {
 
         <div className="main-stack">
           {selectedSheet ? <SheetDetails sheet={selectedSheet} /> : null}
-          <Findings title="Findings" items={analysis.findings} />
-          <Findings title="Recommendations" items={analysis.recommendations} />
+          <Findings title="Hallazgos" items={analysis.findings} />
+          <Findings title="Recomendaciones" items={analysis.recommendations} />
           <Charts charts={analysis.charts} />
 
           <section className="section-band">
             <div className="section-heading">
               <div>
-                <h2>JSON Result</h2>
-                <p>Stable response returned by the analysis engine and A2A task artifact.</p>
+                <h2>Resultado JSON</h2>
+                <p>Respuesta estable devuelta por el motor de analisis y el artefacto A2A.</p>
               </div>
-              <button className="btn btn-secondary" onClick={copyJson} title="Copy JSON result" type="button">
+              <button className="btn btn-secondary" onClick={copyJson} title="Copiar JSON" type="button">
                 <Clipboard size={18} aria-hidden="true" />
-                {copied ? "Copied" : "Copy"}
+                {copied ? "Copiado" : "Copiar"}
               </button>
             </div>
             <pre className="json-block">{JSON.stringify(analysis, null, 2)}</pre>
@@ -198,35 +223,35 @@ function SheetDetails({ sheet }: { sheet: SheetProfile }) {
         <div>
           <h2>{sheet.name}</h2>
           <p>
-            {formatInteger(sheet.rowCount)} rows, {formatInteger(sheet.columnCount)} columns, header row{" "}
-            {sheet.headerRowIndex === null ? "not detected" : sheet.headerRowIndex + 1}.
+            {formatInteger(sheet.rowCount)} filas, {formatInteger(sheet.columnCount)} columnas, fila de cabecera{" "}
+            {sheet.headerRowIndex === null ? "no detectada" : sheet.headerRowIndex + 1}.
           </p>
         </div>
         <span className={quality.nullRatio > 0.35 ? "badge badge-warn" : "badge"}>
-          {formatPercent(quality.nullRatio)} null cells
+          {formatPercent(quality.nullRatio)} celdas nulas
         </span>
       </div>
 
       <div className="kpi-grid">
         <div className="kpi-card">
-          <small>Total cells</small>
+          <small>Celdas totales</small>
           <strong>{formatInteger(quality.totalCells)}</strong>
-          <span>Profiled cells</span>
+          <span>Celdas perfiladas</span>
         </div>
         <div className="kpi-card">
-          <small>Null cells</small>
+          <small>Celdas nulas</small>
           <strong>{formatInteger(quality.nullCells)}</strong>
           <span>{formatPercent(quality.nullRatio)}</span>
         </div>
         <div className="kpi-card">
-          <small>Empty columns</small>
+          <small>Columnas vacias</small>
           <strong>{formatInteger(quality.emptyColumns)}</strong>
-          <span>Detected automatically</span>
+          <span>Detectadas automaticamente</span>
         </div>
         <div className="kpi-card">
-          <small>Approx duplicates</small>
+          <small>Duplicados aprox.</small>
           <strong>{formatInteger(quality.approximateDuplicateRows)}</strong>
-          <span>Row signature match</span>
+          <span>Firma de fila repetida</span>
         </div>
       </div>
 
@@ -243,26 +268,26 @@ function ColumnTable({ columns }: { columns: ColumnProfile[] }) {
       <table>
         <thead>
           <tr>
-            <th>Column</th>
-            <th>Type</th>
-            <th>Role</th>
-            <th>Non-null</th>
-            <th>Nulls</th>
-            <th>Unique</th>
-            <th>Numeric range</th>
-            <th>Samples</th>
+            <th>Columna</th>
+            <th>Tipo</th>
+            <th>Rol</th>
+            <th>No nulos</th>
+            <th>Nulos</th>
+            <th>Unicos</th>
+            <th>Rango numerico</th>
+            <th>Muestras</th>
           </tr>
         </thead>
         <tbody>
           {columns.map((column) => (
             <tr key={`${column.index}-${column.name}`}>
               <td>{column.name}</td>
-              <td>{column.inferredType}</td>
-              <td>{column.detectedRole ?? "-"}</td>
+              <td>{translateType(column.inferredType)}</td>
+              <td>{translateRole(column.detectedRole)}</td>
               <td>{formatInteger(column.nonNullCount)}</td>
               <td>{formatInteger(column.nullCount)}</td>
               <td>{formatInteger(column.uniqueCount)}</td>
-              <td>{column.numeric ? `${formatNumber(column.numeric.min)} to ${formatNumber(column.numeric.max)}` : "-"}</td>
+              <td>{column.numeric ? `${formatNumber(column.numeric.min)} a ${formatNumber(column.numeric.max)}` : "-"}</td>
               <td>{column.sampleValues.join(", ") || "-"}</td>
             </tr>
           ))}
@@ -289,15 +314,15 @@ function Charts({ charts }: { charts: ChartDefinition[] }) {
   if (!charts.length) {
     return (
       <section className="section-band">
-        <h2>Charts</h2>
-        <p>No chart-ready aggregates were detected for this workbook.</p>
+        <h2>Graficos</h2>
+        <p>No se han detectado agregados adecuados para graficos en este libro.</p>
       </section>
     );
   }
 
   return (
     <section className="section-band">
-      <h2>Charts</h2>
+      <h2>Graficos</h2>
       <div className="charts-grid">
         {charts.map((chart) => (
           <div className="chart-box" key={chart.id}>
@@ -330,13 +355,43 @@ function Charts({ charts }: { charts: ChartDefinition[] }) {
 }
 
 function formatInteger(value: number): string {
-  return new Intl.NumberFormat("en-US", { maximumFractionDigits: 0 }).format(value);
+  return new Intl.NumberFormat("es-ES", { maximumFractionDigits: 0 }).format(value);
 }
 
 function formatNumber(value: number): string {
-  return new Intl.NumberFormat("en-US", { maximumFractionDigits: Math.abs(value) >= 100 ? 0 : 2 }).format(value);
+  return new Intl.NumberFormat("es-ES", { maximumFractionDigits: Math.abs(value) >= 100 ? 0 : 2 }).format(value);
 }
 
 function formatPercent(value: number): string {
-  return new Intl.NumberFormat("en-US", { maximumFractionDigits: 1, style: "percent" }).format(value);
+  return new Intl.NumberFormat("es-ES", { maximumFractionDigits: 1, style: "percent" }).format(value);
+}
+
+function translateType(type: ColumnProfile["inferredType"]): string {
+  const labels = {
+    number: "numero",
+    date: "fecha",
+    category: "categoria",
+    text: "texto",
+    boolean: "booleano",
+    empty: "vacia",
+    mixed: "mixta"
+  };
+
+  return labels[type];
+}
+
+function translateRole(role: ColumnProfile["detectedRole"]): string {
+  if (!role) {
+    return "-";
+  }
+
+  const labels = {
+    date: "fecha",
+    amount: "importe",
+    category: "categoria",
+    region: "region",
+    status: "estado"
+  };
+
+  return labels[role];
 }

@@ -15,12 +15,12 @@ export async function POST(request: Request) {
     const file = formData.get("file");
 
     if (!(file instanceof File)) {
-      return NextResponse.json({ error: "Upload a .xlsx or .xls file." }, { status: 400 });
+      return NextResponse.json({ error: "Sube un fichero .xlsx o .xls." }, { status: 400 });
     }
 
     if (file.size > UPLOAD_LIMIT_BYTES) {
       return NextResponse.json(
-        { error: `Uploads are limited to ${UPLOAD_LIMIT_BYTES / 1024 / 1024} MB. Use URL analysis for larger workbooks.` },
+        { error: `Las subidas estan limitadas a ${UPLOAD_LIMIT_BYTES / 1024 / 1024} MB. Usa analisis por URL para libros mas grandes.` },
         { status: 413 }
       );
     }
@@ -35,7 +35,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ analysis });
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Unable to analyze uploaded workbook." },
+      { error: error instanceof Error ? error.message : "No se ha podido analizar el Excel subido." },
       { status: 400 }
     );
   }

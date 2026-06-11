@@ -2,7 +2,13 @@ import { BarChart3 } from "lucide-react";
 import Link from "next/link";
 import { AnalysisDashboard } from "@/components/analysis-dashboard";
 
-export default function AnalysisPage({ params }: { params: { analysisId: string } }) {
+export default function AnalysisPage({
+  params,
+  searchParams
+}: {
+  params: { analysisId: string };
+  searchParams?: { sourceUrl?: string };
+}) {
   return (
     <main className="shell">
       <header className="topbar">
@@ -13,14 +19,14 @@ export default function AnalysisPage({ params }: { params: { analysisId: string 
             </span>
             <span>Excel Analyst A2A Agent</span>
           </Link>
-          <nav className="nav-links" aria-label="Primary navigation">
-            <Link href="/">Analyze</Link>
-            <Link href="/a2a-playground">A2A Playground</Link>
+          <nav className="nav-links" aria-label="Navegacion principal">
+            <Link href="/">Analizar</Link>
+            <Link href="/a2a-playground">Playground A2A</Link>
             <Link href="/.well-known/agent-card.json">Agent Card</Link>
           </nav>
         </div>
       </header>
-      <AnalysisDashboard analysisId={params.analysisId} />
+      <AnalysisDashboard analysisId={params.analysisId} sourceUrl={searchParams?.sourceUrl ?? null} />
     </main>
   );
 }

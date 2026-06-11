@@ -24,23 +24,23 @@ export function HomeClient() {
       const analysis = (await response.json()) as { analysis?: AnalysisResult; error?: string };
 
       if (!response.ok || !analysis.analysis) {
-        throw new Error(analysis.error ?? "Unable to analyze workbook.");
+        throw new Error(analysis.error ?? "No se ha podido analizar el Excel.");
       }
 
       sessionStorage.setItem(`excel-analysis:${analysis.analysis.analysisId}`, JSON.stringify(analysis.analysis));
       router.push(`/analysis/${analysis.analysis.analysisId}`);
     } catch (caughtError) {
-      setError(caughtError instanceof Error ? caughtError.message : "Unexpected analysis error.");
+      setError(caughtError instanceof Error ? caughtError.message : "Error inesperado durante el analisis.");
     } finally {
       setIsLoading(false);
     }
   }
 
   return (
-    <section className="panel analyzer-panel" aria-label="Workbook analyzer">
+    <section className="panel analyzer-panel" aria-label="Analizador de Excel">
       <div className="form-stack">
         <div className="field">
-          <label htmlFor="excel-url">Public Excel URL</label>
+          <label htmlFor="excel-url">URL publica del Excel</label>
           <div className="input-row">
             <div className="input-shell">
               <Link2 size={18} aria-hidden="true" />
@@ -56,7 +56,7 @@ export function HomeClient() {
         </div>
 
         <div>
-          <span className="file-label">Upload .xlsx/.xls</span>
+          <span className="file-label">Subir .xlsx/.xls</span>
           <label className="file-drop">
             <span className="brand-mark" aria-hidden="true">
               <FileSpreadsheet size={18} />
@@ -71,28 +71,28 @@ export function HomeClient() {
 
         {file ? (
           <div className="status status-loading">
-            Upload selected: {file.name}. URL analysis resumes when the file is cleared.
+            Fichero seleccionado: {file.name}. Se volvera al analisis por URL al quitar el fichero.
           </div>
         ) : null}
 
         {error ? <div className="status status-error">{error}</div> : null}
 
-        {isLoading ? <div className="status status-loading">Analyzing workbook and generating dashboard...</div> : null}
+        {isLoading ? <div className="status status-loading">Analizando el Excel y generando el dashboard...</div> : null}
 
         <div className="button-row">
           <button className="btn btn-primary" disabled={isLoading || (!file && !url.trim())} onClick={analyze} type="button">
             {isLoading ? <Loader2 size={18} aria-hidden="true" /> : <Play size={18} aria-hidden="true" />}
-            Analyze
+            Analizar
           </button>
           <button
             className="btn btn-secondary"
             disabled={isLoading || !file}
             onClick={() => setFile(null)}
-            title="Clear uploaded file"
+            title="Quitar fichero subido"
             type="button"
           >
             <Upload size={18} aria-hidden="true" />
-            Use URL
+            Usar URL
           </button>
         </div>
       </div>

@@ -19,7 +19,7 @@ export async function POST(request: Request) {
   try {
     payload = (await request.json()) as JsonRpcRequest;
   } catch {
-    return jsonRpcError(null, -32700, "Parse error", 400);
+    return jsonRpcError(null, -32700, "Error parseando JSON.", 400);
   }
 
   try {
@@ -43,13 +43,13 @@ export async function POST(request: Request) {
       const taskId = typeof payload.params?.id === "string" ? payload.params.id : null;
 
       if (!taskId) {
-        return jsonRpcError(payload.id ?? null, -32602, "Task id is required.", 400);
+        return jsonRpcError(payload.id ?? null, -32602, "El id de la task es obligatorio.", 400);
       }
 
       const task = getA2ATask(taskId);
 
       if (!task) {
-        return jsonRpcError(payload.id ?? null, -32004, "Task not found.", 404);
+        return jsonRpcError(payload.id ?? null, -32004, "Task no encontrada.", 404);
       }
 
       return NextResponse.json({
@@ -59,9 +59,9 @@ export async function POST(request: Request) {
       });
     }
 
-    return jsonRpcError(payload.id ?? null, -32601, "Method not found", 404);
+    return jsonRpcError(payload.id ?? null, -32601, "Metodo no encontrado.", 404);
   } catch (error) {
-    return jsonRpcError(payload.id ?? null, -32000, error instanceof Error ? error.message : "A2A message failed", 400);
+    return jsonRpcError(payload.id ?? null, -32000, error instanceof Error ? error.message : "El mensaje A2A ha fallado.", 400);
   }
 }
 

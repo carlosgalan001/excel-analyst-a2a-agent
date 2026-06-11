@@ -8,7 +8,7 @@ export async function GET(_request: Request, { params }: { params: { analysisId:
   const analysis = getAnalysis(params.analysisId);
 
   if (!analysis) {
-    return NextResponse.json({ error: "Analysis not found in runtime memory." }, { status: 404 });
+    return NextResponse.json({ error: "Analisis no encontrado en la memoria temporal de runtime." }, { status: 404 });
   }
 
   return NextResponse.json({ analysis });

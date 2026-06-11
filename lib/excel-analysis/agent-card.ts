@@ -11,7 +11,7 @@ export function buildAgentCard(baseUrl: string) {
 
   return {
     name: "Excel Analyst A2A Agent",
-    description: "Agent that analyzes multi-sheet Excel workbooks and returns KPIs, dashboard URLs and an executive report.",
+    description: "Agente que analiza libros Excel multihoja y devuelve KPIs, URL de dashboard e informe ejecutivo en espanol.",
     version: "1.0.0",
     url: jsonRpcUrl,
     preferredTransport: "JSONRPC",
@@ -48,9 +48,9 @@ export function buildAgentCard(baseUrl: string) {
     skills: [
       {
         id: "analyze_excel_workbook",
-        name: "Analyze Excel Workbook",
-        description: "Receives an Excel URL or small Excel file and returns KPIs, insights, artifacts and a dashboard URL.",
-        tags: ["excel", "spreadsheet", "analytics", "kpi", "dashboard"],
+        name: "Analizar Excel",
+        description: "Recibe una URL de Excel o un fichero pequeno y devuelve KPIs, hallazgos, artefactos y una URL de dashboard en espanol.",
+        tags: ["excel", "spreadsheet", "analytics", "kpi", "dashboard", "espanol"],
         inputModes,
         outputModes
       }

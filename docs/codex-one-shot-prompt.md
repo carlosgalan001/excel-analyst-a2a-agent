@@ -26,6 +26,7 @@ Crear una aplicacion Next.js desplegable en Vercel que exponga:
 - SheetJS/xlsx para leer Excel.
 - Recharts para graficas.
 - UI simple, profesional y funcional.
+- Toda la experiencia de usuario debe estar en espanol: textos del front, errores, resumen ejecutivo, hallazgos, recomendaciones y respuesta textual A2A.
 - Preparado para deploy en Vercel.
 - Sin Docker.
 - Sin base de datos obligatoria.
@@ -121,6 +122,7 @@ Debe devolver un JSON estable:
 - El resumen ejecutivo debe ser determinista por defecto, sin necesidad de LLM.
 - Preparar una funcion opcional `enhanceSummaryWithLLM` pero dejarla desactivada si no hay `OPENAI_API_KEY`.
 - Si `OPENAI_API_KEY` existe, usarla solo para redactar conclusiones mas vistosas a partir del JSON agregado, nunca enviando todo el Excel bruto.
+- Las conclusiones deterministas y la respuesta A2A no deben quedarse en metricas genericas. Incluir siempre informacion accionable: hojas principales por volumen, campos utiles detectados, KPIs numericos destacados cuando existan, calidad de datos, hallazgos y recomendaciones en espanol.
 
 ## A2A compatible con AWP
 
@@ -135,6 +137,7 @@ Importante:
 - El metodo JSON-RPC real del SDK es `message/send`, no `SendMessage`.
 - Para recuperar tareas el metodo JSON-RPC real del SDK es `tasks/get`.
 - El cliente AWP extrae texto principalmente de `Task.history` y de `Artifact.parts`, asi que incluir siempre `TextPart` legible.
+- El prompt del agente AWP debe indicar que envie literalmente la URL publica del Excel dentro del texto que manda al agente remoto. No basta con referencias como "ese Excel" o "la URL anterior".
 
 ### Agent Card
 
@@ -143,7 +146,7 @@ Importante:
 Debe incluir:
 
 - `name`: "Excel Analyst A2A Agent"
-- `description`: agente que analiza Excels multihoja y devuelve KPIs, dashboard e informe ejecutivo.
+- `description`: agente que analiza Excels multihoja y devuelve KPIs, dashboard e informe ejecutivo en espanol.
 - `version`
 - `url`: URL absoluta del endpoint JSON-RPC, es decir `${baseUrl}/a2a/v1`
 - `preferredTransport`: `"JSONRPC"`
@@ -153,7 +156,7 @@ Debe incluir:
 - `defaultOutputModes`
 - `skills`, cada skill con:
   - `id`: `analyze_excel_workbook`
-  - `name`: `Analyze Excel Workbook`
+  - `name`: `Analizar Excel`
   - `description`
   - `tags`
   - `inputModes`
@@ -210,6 +213,7 @@ Reglas:
 - Si recibe `raw` o `file.bytes`, soportarlo solo para ficheros pequenos y devolver error claro si es demasiado grande.
 - Si recibe texto con una URL `http://` o `https://`, extraer esa URL.
 - Si no recibe URL ni fichero, no devolver HTTP 400. Devolver una respuesta JSON-RPC correcta con una `Task` en estado `input-required` y un `TextPart` que pida una URL publica de Excel. Esto evita que clientes AWP que tengan bugs de manejo de excepciones oculten el error real.
+- La `Task` `input-required` tambien debe responder en espanol.
 
 ### Formato de respuesta A2A
 
@@ -250,7 +254,7 @@ Debe devolver un `Task` valido del SDK:
       "contextId": "...",
       "taskId": "...",
       "parts": [
-        { "kind": "text", "text": "Resumen, KPIs principales y dashboard URL" }
+        { "kind": "text", "text": "Resumen, KPIs principales y URL del dashboard en espanol" }
       ],
       "metadata": {
         "sender": "excel_analyst_a2a_agent",
@@ -321,6 +325,32 @@ Si el metodo no esta soportado, devolver error JSON-RPC correcto.
 
 Construir `dashboardUrl`, Agent Card URLs y endpoints con la URL publica del deployment si esta disponible.
 Usar headers `host` y `x-forwarded-proto` para generar URLs absolutas en Vercel.
+
+En Vercel no se puede depender de memoria de runtime para que el enlace de dashboard generado por A2A funcione despues de la respuesta. Para analisis desde URL publica:
+
+- construir `dashboardUrl` como `/analysis/[analysisId]?sourceUrl=<url-publica-codificada>`;
+- en `/analysis/[analysisId]`, si `/api/analysis/[analysisId]` no encuentra el resultado en memoria y existe `sourceUrl`, volver a analizar esa URL y renderizar el dashboard;
+- mantener `sessionStorage` como cache del navegador para flujos iniciados desde el front;
+- no introducir base de datos obligatoria para resolver este fallback.
+
+## Prompt recomendado para el agente AWP
+
+Cuando se configure el agente externo de AWP, usar una instruccion de este estilo:
+
+```text
+Te comunicas con un agente externo mediante protocolo A2A.
+
+Tu agente remoto es:
+https://excel-analyst-a2a-agent.vercel.app/.well-known/agent-card.json
+
+Cuando el usuario te pida analizar un Excel, envia al agente remoto A2A un mensaje que incluya literalmente la URL publica del Excel dentro del texto del mensaje.
+
+Formato recomendado:
+"Analiza este Excel: <URL_PUBLICA_DEL_EXCEL>"
+
+No sustituyas la URL por referencias como "la URL anterior", "este Excel" o "el fichero adjunto".
+Devuelve al usuario final la respuesta en espanol usando el resumen, KPIs, hallazgos, recomendaciones y enlace de dashboard que devuelva el agente remoto.
+```
 
 ## README
 

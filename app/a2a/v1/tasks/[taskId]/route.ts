@@ -12,7 +12,7 @@ export async function GET(_request: Request, { params }: { params: { taskId: str
       {
         error: {
           code: "task_not_found",
-          message: "Task is not available in runtime memory."
+          message: "La task no esta disponible en la memoria temporal de runtime."
         }
       },
       { status: 404 }

@@ -12,7 +12,7 @@ export async function POST(request: Request) {
     const body = (await request.json()) as { url?: string };
 
     if (!body.url || typeof body.url !== "string") {
-      return NextResponse.json({ error: "Provide a public Excel URL." }, { status: 400 });
+      return NextResponse.json({ error: "Indica una URL publica de Excel." }, { status: 400 });
     }
 
     const analysis = await analyzeWorkbookFromUrl(body.url, {
@@ -24,7 +24,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ analysis });
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Unable to analyze workbook URL." },
+      { error: error instanceof Error ? error.message : "No se ha podido analizar la URL del Excel." },
       { status: 400 }
     );
   }

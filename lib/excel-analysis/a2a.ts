@@ -62,7 +62,7 @@ export async function handleA2AMessage(body: unknown, baseUrl: string): Promise<
 
     if (buffer.byteLength > RAW_UPLOAD_LIMIT_BYTES) {
       throw new Error(
-        `Raw base64 uploads are limited to ${RAW_UPLOAD_LIMIT_BYTES / 1024 / 1024} MB. Use a public or temporary Excel URL for large workbooks.`
+        `Los envios base64 estan limitados a ${RAW_UPLOAD_LIMIT_BYTES / 1024 / 1024} MB. Usa una URL publica o temporal para Excels grandes.`
       );
     }
 
@@ -107,7 +107,7 @@ export async function handleA2AMessage(body: unknown, baseUrl: string): Promise<
       {
         artifactId: "analysis_result",
         name: "analysis_result",
-        description: "Complete Excel analysis JSON.",
+        description: "JSON completo del analisis de Excel.",
         parts: [
           {
             kind: "data",
@@ -118,7 +118,7 @@ export async function handleA2AMessage(body: unknown, baseUrl: string): Promise<
       {
         artifactId: "executive_summary",
         name: "executive_summary",
-        description: "Deterministic executive summary.",
+        description: "Resumen ejecutivo determinista.",
         parts: [
           {
             kind: "text",
@@ -129,7 +129,7 @@ export async function handleA2AMessage(body: unknown, baseUrl: string): Promise<
       {
         artifactId: "dashboard",
         name: "dashboard",
-        description: "Dashboard URL for the interactive report.",
+        description: "URL del dashboard para el informe interactivo.",
         parts: [
           {
             kind: "data",
@@ -147,7 +147,7 @@ export async function handleA2AMessage(body: unknown, baseUrl: string): Promise<
       {
         artifactId: "kpis",
         name: "kpis",
-        description: "Workbook and numeric column KPIs.",
+        description: "KPIs del libro y de columnas numericas.",
         parts: [
           {
             kind: "data",
@@ -182,7 +182,7 @@ function buildInputRequiredTask(body: unknown, parts: IncomingA2APart[]): A2ATas
     parts: [
       {
         kind: "text",
-        text: "Please provide a public Excel URL in the message text or as data.excelUrl."
+        text: "Necesito una URL publica del Excel en el texto del mensaje o en data.excelUrl."
       }
     ],
     metadata: {
@@ -203,7 +203,7 @@ function buildInputRequiredTask(body: unknown, parts: IncomingA2APart[]): A2ATas
     history: [userMessage, agentMessage],
     artifacts: [],
     metadata: {
-      summary: "A public Excel URL is required.",
+      summary: "Se necesita una URL publica de Excel.",
       dashboardUrl: null,
       reportUrl: null
     }
@@ -489,26 +489,38 @@ function getString(record: Record<string, unknown> | null, key: string): string 
 }
 
 function buildAssistantText(contract: A2AContractResult): string {
-  const topKpis = contract.kpis
-    .slice(0, 6)
+  const structuralKpis = contract.kpis
+    .filter((kpi) => !kpi.sheetName)
+    .slice(0, 4)
     .map((kpi) => `- ${kpi.label}: ${kpi.formattedValue}`)
     .join("\n");
-  const findings = contract.findings.slice(0, 4).map((finding) => `- ${finding}`).join("\n");
-  const recommendations = contract.recommendations.slice(0, 3).map((recommendation) => `- ${recommendation}`).join("\n");
+  const numericKpis = contract.kpis
+    .filter((kpi) => kpi.sheetName)
+    .slice(0, 8)
+    .map((kpi) => `- ${kpi.label}: ${kpi.formattedValue}`)
+    .join("\n");
+  const findings = contract.findings.slice(0, 8).map((finding) => `- ${finding}`).join("\n");
+  const recommendations = contract.recommendations.slice(0, 5).map((recommendation) => `- ${recommendation}`).join("\n");
 
   return [
+    "Analisis completado.",
+    "",
+    "Resumen ejecutivo:",
     contract.summary,
     "",
-    "Top KPIs:",
-    topKpis || "- No KPIs generated.",
+    "KPIs estructurales:",
+    structuralKpis || "- No se han generado KPIs estructurales.",
     "",
-    "Findings:",
-    findings || "- No findings generated.",
+    "KPIs numericos destacados:",
+    numericKpis || "- No se han detectado columnas numericas claras para KPIs de negocio.",
     "",
-    "Recommendations:",
-    recommendations || "- No recommendations generated.",
+    "Hallazgos:",
+    findings || "- No se han generado hallazgos.",
+    "",
+    "Recomendaciones:",
+    recommendations || "- No se han generado recomendaciones.",
     "",
     `Dashboard: ${contract.dashboardUrl}`,
-    `Analysis ID: ${contract.analysisId}`
+    `ID de analisis: ${contract.analysisId}`
   ].join("\n");
 }
