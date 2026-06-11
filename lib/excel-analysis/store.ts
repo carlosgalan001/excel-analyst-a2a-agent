@@ -1,26 +1,57 @@
 import type { AnalysisResult } from "./types";
 
 export interface A2ATaskRecord {
+  kind: "task";
   id: string;
   contextId: string;
   status: {
     state: "completed" | "failed";
     timestamp: string;
-    message?: string;
+    message?: A2AMessage;
   };
-  artifacts: Array<{
-    artifactId: string;
-    name: string;
-    mediaType: string;
-    parts: Array<{
-      mediaType: string;
-      data?: unknown;
-      text?: string;
-      url?: string;
-    }>;
-    content: unknown;
-  }>;
-  result?: unknown;
+  history: A2AMessage[];
+  artifacts: A2AArtifact[];
+  metadata: Record<string, unknown>;
+}
+
+export interface A2AMessage {
+  kind: "message";
+  role: "user" | "agent";
+  messageId: string;
+  taskId?: string | null;
+  contextId: string;
+  parts: A2APart[];
+  metadata?: Record<string, unknown>;
+}
+
+export type A2APart =
+  | {
+      kind: "text";
+      text: string;
+      metadata?: Record<string, unknown>;
+    }
+  | {
+      kind: "data";
+      data: Record<string, unknown>;
+      metadata?: Record<string, unknown>;
+    }
+  | {
+      kind: "file";
+      file: {
+        name?: string;
+        bytes?: string;
+        uri?: string;
+        mimeType?: string;
+      };
+      metadata?: Record<string, unknown>;
+    };
+
+export interface A2AArtifact {
+  artifactId: string;
+  name: string;
+  description?: string;
+  parts: A2APart[];
+  metadata?: Record<string, unknown>;
 }
 
 type StoreGlobal = typeof globalThis & {
