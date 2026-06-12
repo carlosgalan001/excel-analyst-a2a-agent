@@ -1,6 +1,6 @@
 # Codex One-Shot Prompt
 
-Construye desde cero una demo completa llamada "Excel Analyst A2A Agent".
+Construye desde cero una demo completa llamada "Excel Analyst A2A Agent V2".
 
 ## Contexto de negocio
 
@@ -50,25 +50,60 @@ https://www.sspa.juntadeandalucia.es/servicioandaluzdesalud/sites/default/files/
 ## Funcionalidades del front
 
 - Pagina `/`:
-  - titulo "Excel Analyst A2A Agent";
+  - titulo "Excel Analyst A2A Agent V2";
   - input para URL publica de Excel;
   - upload opcional de `.xlsx`/`.xls` para ficheros pequenos;
   - boton "Analyze";
   - estado de carga y errores claros.
 - Pagina `/analysis/[analysisId]`:
-  - dashboard con KPIs;
-  - listado de hojas detectadas;
+  - dashboard ejecutivo orientado a datos sanitarios publicos, no solo a estructura del Excel;
+  - primera vista con KPIs funcionales priorizados cuando existan campos compatibles:
+    - actividad asistencial: altas, bajas, episodios, ingresos, casos, pacientes o registros equivalentes;
+    - actividad hospitalaria por centro, hospital, area, provincia, servicio, especialidad, GRD/diagnostico o categoria clinica;
+    - indicadores de estancia y tiempos: estancia media, dias de estancia, demora, duracion, tiempos medios, minimo, maximo y outliers;
+    - indicadores economicos si existen: coste, importe, tarifa, peso, facturacion, coste medio por alta/caso;
+    - indicadores de complejidad o casuistica si existen: peso medio, severidad, mortalidad, readmision, urgencia/programado, tipo de alta;
+    - variaciones y concentracion: top hospitales/categorias, peso relativo sobre el total, dispersion y diferencias entre grupos;
+  - tarjeta de "lectura funcional" con 3-6 conclusiones en lenguaje de negocio sanitario:
+    - que volumen se esta analizando;
+    - donde se concentra la actividad;
+    - que hospitales/categorias/servicios destacan;
+    - que indicadores muestran valores extremos o desviaciones;
+    - que datos faltan para tomar mejores decisiones;
+  - seccion de "Hallazgos de negocio" separada de "Calidad del dato";
+  - "Hallazgos de negocio" debe evitar frases genericas como "hay X columnas numericas"; debe hablar de actividad, tiempos, importes, centros, categorias y tendencias cuando los datos lo permitan;
+  - "Calidad del dato" debe quedar como soporte: nulos, columnas vacias, duplicados aproximados, campos incompletos, hojas poco explotables;
+  - listado de hojas detectadas con una interpretacion de utilidad funcional:
+    - hoja principal de actividad;
+    - hojas de catalogo/dimensiones;
+    - hojas de validacion, estandar o metadatos si se detectan;
   - filas/columnas por hoja;
-  - perfil de columnas;
-  - calidad de datos: nulos, columnas vacias, duplicados aproximados;
-  - KPIs automaticos de columnas numericas: suma, media, minimo, maximo;
-  - deteccion simple de columnas de fecha, importe, categoria, region, estado si existen;
-  - graficos automaticos:
-    - barras por categoria si hay columna categorica y numerica;
-    - linea temporal si hay fecha y numerica;
-    - ranking top N si aplica;
-  - resumen ejecutivo;
-  - recomendaciones;
+  - perfil de columnas, pero agrupado por tipo funcional detectado: fecha/periodo, hospital/centro, territorio, diagnostico/GRD, actividad, tiempo, importe/coste, categoria/estado;
+  - KPIs automaticos de columnas numericas con contexto:
+    - total, media, minimo, maximo, mediana aproximada si es viable;
+    - porcentaje sobre total cuando haya agrupaciones;
+    - top/bottom por categoria cuando haya dimensiones;
+    - evitar mostrar sumas sin sentido para codigos, identificadores o anios;
+  - deteccion simple de columnas sanitarias frecuentes:
+    - altas, bajas, ingresos, episodios, casos, pacientes, consultas, urgencias;
+    - hospital, centro, area, provincia, region, servicio, especialidad;
+    - GRD, diagnostico, CIE, procedimiento, categoria, tipo hospital, tipo alta, estado;
+    - fecha, anio, mes, periodo;
+    - estancia, dias, demora, tiempo;
+    - coste, importe, tarifa, peso, facturacion;
+  - graficos automaticos orientados a decision:
+    - barras de actividad por hospital/centro/territorio/categoria;
+    - ranking top N de hospitales, servicios, diagnosticos, GRD o categorias por volumen;
+    - linea temporal si hay periodo/fecha y una metrica de actividad, tiempo o coste;
+    - dispersion o comparativa si hay estancia/coste frente a volumen;
+    - composicion porcentual por tipo de alta, estado, categoria clinica o tipo de hospital si aplica;
+  - resumen ejecutivo con narrativa funcional, maximo 6 frases, priorizando lo relevante para un responsable sanitario;
+  - recomendaciones accionables basadas en los datos:
+    - revisar centros/categorias con valores extremos;
+    - investigar desviaciones de estancia, coste o actividad;
+    - completar campos criticos para seguimiento;
+    - crear seguimiento temporal si no hay fecha/periodo;
+    - validar definiciones funcionales cuando una columna parezca ambigua;
   - JSON de resultado copiable.
 - Pagina `/a2a-playground`:
   - formulario para enviar una request A2A real contra el propio endpoint;
@@ -109,6 +144,42 @@ Debe devolver un JSON estable:
 
 - Funcionar con cualquier Excel razonable aunque no conozca el esquema.
 - Leer varias hojas.
+- Priorizar insights funcionales sobre metadatos tecnicos: el usuario final debe entender que esta pasando en los datos sanitarios, no solo como esta construido el libro.
+- Implementar una capa heuristica de dominio sanitario que clasifique columnas por significado probable usando nombres de columna y valores de muestra.
+- Mantener un analisis generico como fallback si el Excel no parece sanitario, pero si detecta terminos como altas, hospital, GRD, diagnostico, estancia, CMBD, pacientes, ingresos, coste o importe, activar el modo sanitario.
+- Separar claramente:
+  - metricas de negocio sanitario;
+  - graficos y agregados funcionales;
+  - calidad del dato;
+  - perfil tecnico del libro.
+- No tratar identificadores, codigos, anios, codigos CIE/GRD o codigos de centro como metricas sumables aunque sean numericos.
+- Para cada metrica numerica candidata, decidir si es:
+  - metrica agregable: altas, casos, pacientes, ingresos, coste, importe, dias;
+  - indicador promedio: estancia media, coste medio, peso medio, demora media;
+  - codigo o identificador: no sumar, solo usar como dimension si procede.
+- Detectar dimensiones utiles para agrupar:
+  - hospital/centro;
+  - territorio/provincia/area/region;
+  - servicio/especialidad;
+  - diagnostico/GRD/procedimiento/categoria clinica;
+  - periodo/anio/mes/fecha;
+  - tipo de alta, estado, tipo de hospital.
+- Generar KPIs sanitarios cuando sea posible:
+  - total de altas/casos/episodios/pacientes;
+  - numero de hospitales/centros/territorios detectados;
+  - categoria u hospital con mayor volumen;
+  - porcentaje que representa el top 1/top 5 sobre el total;
+  - estancia media o demora media si hay campos de tiempo;
+  - coste/importe total y coste medio por alta/caso si hay actividad y coste;
+  - top diagnosticos/GRD/categorias por volumen;
+  - variacion temporal de actividad, estancia o coste si hay periodo;
+  - registros invalidos o no clasificados si el Excel contiene columnas de validacion.
+- Generar hallazgos deterministas de negocio con esta prioridad:
+  - concentracion de actividad;
+  - diferencias relevantes entre hospitales, territorios, servicios o categorias;
+  - tendencias temporales;
+  - valores extremos de estancia, coste, demora o volumen;
+  - problemas de calidad que afecten a la interpretacion funcional.
 - Limitar el coste para hojas grandes:
   - perfil completo razonable;
   - muestreo para inferencias si hace falta;
@@ -122,7 +193,8 @@ Debe devolver un JSON estable:
 - El resumen ejecutivo debe ser determinista por defecto, sin necesidad de LLM.
 - Preparar una funcion opcional `enhanceSummaryWithLLM` pero dejarla desactivada si no hay `OPENAI_API_KEY`.
 - Si `OPENAI_API_KEY` existe, usarla solo para redactar conclusiones mas vistosas a partir del JSON agregado, nunca enviando todo el Excel bruto.
-- Las conclusiones deterministas y la respuesta A2A no deben quedarse en metricas genericas. Incluir siempre informacion accionable: hojas principales por volumen, campos utiles detectados, KPIs numericos destacados cuando existan, calidad de datos, hallazgos y recomendaciones en espanol.
+- Las conclusiones deterministas y la respuesta A2A no deben quedarse en metricas genericas. Incluir siempre informacion accionable: KPIs sanitarios detectados, concentracion de actividad, rankings funcionales, posibles desviaciones, calidad de datos que afecte a la lectura y recomendaciones en espanol.
+- Si no hay suficientes campos funcionales, explicarlo de forma clara y proponer que columnas faltan para obtener KPIs sanitarios mejores, por ejemplo fecha/periodo, centro/hospital, metrica de actividad, estancia, coste o categoria clinica.
 
 ## A2A compatible con AWP
 
